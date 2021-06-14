@@ -35,6 +35,9 @@ from .._version import __version__
 
 from ..archetypes import All_archetypes
 
+import logging
+logger = logging.getLogger("redrock.desi")
+
 
 def write_zbest(outfile, zbest, fibermap, template_version, archetype_version):
     """Write zbest and fibermap Tables to outfile
@@ -437,6 +440,7 @@ def rrdesi(options=None, comm=None):
         comm (mpi4py.Comm): MPI communicator to use.
 
     """
+
     global_start = elapsed(None, "", comm=comm)
 
     parser = argparse.ArgumentParser(description="Estimate redshifts from"
@@ -505,7 +509,7 @@ def rrdesi(options=None, comm=None):
         args = parser.parse_args(options)
 
     if args.ncpu is not None:
-        print('WARNING: --ncpu is deprecated; use --mp instead')
+        logger.warning('WARNING: --ncpu is deprecated; use --mp instead')
         args.mp = args.ncpu
 
     comm_size = 1
@@ -519,8 +523,7 @@ def rrdesi(options=None, comm=None):
 
     if comm_rank == 0:
         if args.debug and comm_size != 1:
-            print("--debug can only be used if the communicator has one "
-                " process")
+            logger.info("--debug can only be used if the communicator has one process")
             sys.stdout.flush()
             if comm is not None:
                 comm.Abort()
@@ -569,28 +572,28 @@ def rrdesi(options=None, comm=None):
     mpprocs = 0
     if comm is None:
         mpprocs = get_mp(args.mp)
-        print("Running with {} processes".format(mpprocs))
+        logger.info(" Running with {} processes".format(mpprocs))
         if "OMP_NUM_THREADS" in os.environ:
             nthread = int(os.environ["OMP_NUM_THREADS"])
             if nthread != 1:
-                print("WARNING:  {} multiprocesses running, each with "
+                logger.warning(" {} multiprocesses running, each with "
                     "{} threads ({} total)".format(mpprocs, nthread,
                     mpprocs*nthread))
-                print("WARNING:  Please ensure this is <= the number of "
+                logger.warning(" Please ensure this is <= the number of "
                     "physical cores on the system")
         else:
-            print("WARNING:  using multiprocessing, but the OMP_NUM_THREADS")
-            print("WARNING:  environment variable is not set- your system may")
-            print("WARNING:  be oversubscribed.")
+            logger.warning(" using multiprocessing, but the OMP_NUM_THREADS")
+            logger.warning(" environment variable is not set- your system may")
+            logger.warning(" be oversubscribed.")
         sys.stdout.flush()
     elif comm_rank == 0:
-        print("Running with {} processes".format(comm_size))
+        logger.info(" Running with {} processes".format(comm_size))
         sys.stdout.flush()
 
     try:
         # Load and distribute the targets
         if comm_rank == 0:
-            print("Loading targets...")
+            logger.debug(" Loading targets...")
             sys.stdout.flush()
 
         start = elapsed(None, "", comm=comm)
@@ -665,8 +668,8 @@ def rrdesi(options=None, comm=None):
         exc_type, exc_value, exc_traceback = sys.exc_info()
         lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
         lines = [ "Proc {}: {}".format(comm_rank, x) for x in lines ]
-        print("--- Process {} raised an exception ---".format(comm_rank))
-        print("".join(lines))
+        logger.info("--- Process {} raised an exception ---".format(comm_rank))
+        logger.info("".join(lines))
         sys.stdout.flush()
         if comm is None or args.no_mpi_abort:
             raise err
