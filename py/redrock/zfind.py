@@ -33,6 +33,8 @@ from .fitz import fitz, get_dv
 
 from .zwarning import ZWarningMask as ZW
 
+import logging
+logger = logging.getLogger("redrock.zfind")
 
 def _mp_fitz(chi2, target_data, t, nminima, qout, archetype):
     """Wrapper for multiprocessing version of fitz.
@@ -152,9 +154,22 @@ def zfind(targets, templates, mp_procs=1, nminima=3, archetypes=None, priors=Non
     # Apply redshift prior
     if not priors is None:
         for tg in results.keys():
+            
+            #import matplotlib.pyplot as plt
+            #plt.figure()
+            #plt.plot(results[tg]['QSO']['redshifts'], results[tg]['QSO']['zchi2'])
+            
             for ft in results[tg].keys():
                 results[tg][ft]['zchi2'] += priors.eval(tg, results[tg][ft]['redshifts'])
-
+         
+            #plt.plot(results[tg]['QSO']['redshifts'], results[tg]['QSO']['zchi2'])
+            #plt.ylim(20000, 60000)
+            #plt.xlim(0.5, 2.0)
+            #plt.xlabel('z')
+            #plt.ylabel('chi2')
+            #plt.title(tg)
+            #plt.show()
+                
     # For each of our local targets, refine the redshift fit close to the
     # minima in the coarse fit.
 
@@ -167,8 +182,7 @@ def zfind(targets, templates, mp_procs=1, nminima=3, archetypes=None, priors=Non
             archetype = None
 
         if am_root:
-            print("  Finding best fits for template {}"\
-                .format(t.template.full_type))
+            logger.info("Finding best fits for template {}".format(t.template.full_type))
             sys.stdout.flush()
 
         start = elapsed(None, "", comm=t.comm)
@@ -183,6 +197,13 @@ def zfind(targets, templates, mp_procs=1, nminima=3, archetypes=None, priors=Non
                     + results[tg.id][ft]['penalty'],
                     t.template.redshifts, tg.spectra,
                     t.template, nminima=nminima,archetype=archetype)
+                
+                #print(zfit.info)
+                #print(zfit['z'])
+                #print(zfit['chi2'])
+                #print(zfit['zz'])
+                #print(zfit['zzchi2'])
+                
                 results[tg.id][ft]['zfit'] = zfit
                 results[tg.id][ft]['zfit']['npixels'] = 0
                 for spectrum in tg.spectra:

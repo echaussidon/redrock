@@ -15,6 +15,9 @@ from .utils import elapsed
 
 from .targets import distribute_targets
 
+import logging
+logger = logging.getLogger("redrock.zscan")
+
 def _zchi2_one(Tb, weights, flux, wflux, zcoeff):
     """Calculate a single chi2.
 
@@ -207,14 +210,14 @@ def calc_zchi2_targets(targets, templates, mp_procs=1):
         results[tid] = dict()
 
     if am_root:
-        print("Computing redshifts")
+        logger.debug("Computing redshifts")
         sys.stdout.flush()
 
     for t in templates:
         ft = t.template.full_type
 
         if am_root:
-            print("  Scanning redshifts for template {}"\
+            logger.info("Scanning redshifts for template {}"\
                 .format(t.template.full_type))
             sys.stdout.flush()
 
@@ -234,8 +237,9 @@ def calc_zchi2_targets(targets, templates, mp_procs=1):
             # for all redshifts for their local targets.
 
             if am_root:
-                sys.stdout.write("    Progress: {:3d} %\n".format(0))
-                sys.stdout.flush()
+                logger.debug("    Progress: {:3d} %\n".format(0))
+                #sys.stdout.write("    Progress: {:3d} %\n".format(0))
+                #sys.stdout.flush()
 
             zchi2 = dict()
             zcoeff = dict()
@@ -271,9 +275,10 @@ def calc_zchi2_targets(targets, templates, mp_procs=1):
                 if prg >= proglast + prog_chunk:
                     proglast += prog_chunk
                     if am_root and (t.comm is not None):
-                        sys.stdout.write("    Progress: {:3d} %\n"\
-                            .format(proglast))
-                        sys.stdout.flush()
+                        logger.debug("    Progress: {:3d} %\n".format(proglast))
+                        #sys.stdout.write("    Progress: {:3d} %\n"\
+                        #    .format(proglast))
+                        #sys.stdout.flush()
                 prog += 1
 
                 # Cycle through the redshift slices
@@ -310,8 +315,9 @@ def calc_zchi2_targets(targets, templates, mp_procs=1):
                 p.start()
 
             # Track progress
-            sys.stdout.write("    Progress: {:3d} %\n".format(0))
-            sys.stdout.flush()
+            logger.debug("    Progress: {:3d} %".format(0))
+            #sys.stdout.write("    Progress: {:3d} %\n".format(0))
+            #sys.stdout.flush()
             ntarget = len(targets.local_target_ids())
             progincr = 10
             if mp_procs > ntarget:
@@ -324,8 +330,9 @@ def calc_zchi2_targets(targets, templates, mp_procs=1):
                 prg = int(100.0 * tot / ntarget)
                 if prg >= proglast + progincr:
                     proglast += progincr
-                    sys.stdout.write("    Progress: {:3d} %\n".format(proglast))
-                    sys.stdout.flush()
+                    logger.debug("    Progress: {:3d} %".format(proglast))
+                    #sys.stdout.write("    Progress: {:3d} %\n".format(proglast))
+                    #sys.stdout.flush()
 
             # Extract the output
             zchi2 = dict()
