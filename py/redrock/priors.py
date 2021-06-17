@@ -11,7 +11,6 @@ logger = logging.getLogger("redrock.priors")
 
 class Priors():
     """Class to store all different redshift priors.
-
     Args:
         filename (str): the path to the redshift prior file.
         The file should have at least one HDU with
@@ -19,7 +18,6 @@ class Priors():
             TARGETID: the id of the object
             Z: the mean of the prior
             SIGMA: the sigma (in dz) for the prior
-
     """
     def __init__(self, filename):
 
@@ -86,8 +84,8 @@ class Priors():
 
     @staticmethod
     def tophat(z, z0, s0):
-        """Return a tophat prior of mean z0 and width s0 on the grid z. 
-           Warning : 
+        """Return a tophat prior of mean z0 and width s0 on the grid z.
+           Warning :
                 * np.NaN <= np.NaN -> False
                 * np.NaN <=/>= 0.0  -> False
                 * np.inf >= 0.0 -> True
@@ -106,7 +104,6 @@ class Priors():
         Returns:
             prior values on the redshift grid.
         """
-        
         tophat_in_xi2_unit = np.vectorize(lambda x : 0 if np.abs(x - z0) < s0/2 else np.NaN)
  
         prior = tophat_in_xi2_unit(z)
@@ -119,5 +116,4 @@ class Priors():
             prior[index_right] = np.inf
         else:
             prior[index_right + 1] = np.inf
-        
         return prior
