@@ -7,7 +7,7 @@ redrock wrapper tools for DESI
 import os
 import sys
 import re
-import warnings
+import logging
 import traceback
 
 import argparse
@@ -35,7 +35,7 @@ from .._version import __version__
 
 from ..archetypes import All_archetypes
 
-import logging
+
 logger = logging.getLogger("redrock.desi")
 
 
@@ -51,12 +51,12 @@ def write_zbest(outfile, zbest, fibermap, template_version, archetype_version):
     header = fits.Header()
     header['RRVER'] = (__version__, 'Redrock version')
     for i, fulltype in enumerate(template_version.keys()):
-        header['TEMNAM'+str(i).zfill(2)] = fulltype
-        header['TEMVER'+str(i).zfill(2)] = template_version[fulltype]
-    if not archetype_version is None:
+        header['TEMNAM' + str(i).zfill(2)] = fulltype
+        header['TEMVER' + str(i).zfill(2)] = template_version[fulltype]
+    if archetype_version is not None:
         for i, fulltype in enumerate(archetype_version.keys()):
-            header['ARCNAM'+str(i).zfill(2)] = fulltype
-            header['ARCVER'+str(i).zfill(2)] = archetype_version[fulltype]
+            header['ARCNAM' + str(i).zfill(2)] = fulltype
+            header['ARCVER' + str(i).zfill(2)] = archetype_version[fulltype]
     zbest.meta['EXTNAME'] = 'ZBEST'
     fibermap.meta['EXTNAME'] = 'FIBERMAP'
 
@@ -99,7 +99,7 @@ class DistTargetsDESI(DistTargets):
         cosmics_nsig (float): cosmic rejection threshold used in coaddition
     """
 
-    ### @profile
+    # @profile
     def __init__(self, spectrafiles, coadd=True, targetids=None,
                  first_target=None, n_target=None, comm=None, cache_Rcsr=False, cosmics_nsig=0):
 
@@ -121,23 +121,19 @@ class DistTargetsDESI(DistTargets):
         self.cosmics_nsig = cosmics_nsig
 
         # This is the mapping between specs to targets for each file
-
         self._spec_to_target = {}
         self._target_specs = {}
         self._spec_keep = {}
         self._spec_sliced = {}
 
         # The bands for each file
-
         self._bands = {}
         self._wave = {}
 
         # The full list of targets from all files
-
         self._alltargetids = set()
 
         # The fibermaps from all files
-
         self._fmaps = {}
 
         for sfile in spectrafiles:
@@ -148,7 +144,7 @@ class DistTargetsDESI(DistTargets):
                 hdus = fits.open(sfile, memmap=False)
                 nhdu = len(hdus)
                 fmap = encode_table(Table(hdus["FIBERMAP"].data,
-                    copy=True).as_array())
+                                    copy=True).as_array())
 
             if comm is not None:
                 nhdu = comm.bcast(nhdu, root=0)
@@ -167,9 +163,8 @@ class DistTargetsDESI(DistTargets):
             if first_target is None:
                 first_target = 0
             if first_target > len(keep_targetids):
-                raise RuntimeError("first_target value \"{}\" is beyond the "
-                    "number of selected targets in the file".\
-                    format(first_target))
+                raise RuntimeError(f"first_target value \"{first_target}\" is beyond the \
+                                    number of selected targets in the file")
 
             if n_target is None:
                 nkeep = len(keep_targetids)
@@ -177,43 +172,35 @@ class DistTargetsDESI(DistTargets):
                 nkeep = n_target
 
             if first_target + nkeep > len(keep_targetids):
-                msg = "Requested first_target ({}) + nkeep ({})".format(
-                        first_target, nkeep)
-                msg += " is larger than number of selected targets ({})".format(
-                        len(keep_targetids))
+                msg = f"Requested first_target ({first_target}) + nkeep ({nkeep})"
+                msg += f" is larger than number of selected targets ({len(keep_targetids)})"
                 raise RuntimeError(msg)
 
-            keep_targetids = keep_targetids[first_target:first_target+nkeep]
+            keep_targetids = keep_targetids[first_target:first_target + nkeep]
 
             self._alltargetids.update(keep_targetids)
 
             # This is the spectral row to target mapping using the original
             # global indices (before slicing).
-
-            self._spec_to_target[sfile] = [ x if y in keep_targetids else -1 \
-                for x, y in enumerate(fmap["TARGETID"]) ]
+            self._spec_to_target[sfile] = [x if y in keep_targetids else -1
+                                           for x, y in enumerate(fmap["TARGETID"])]
 
             # The reduced set of spectral rows.
-
-            self._spec_keep[sfile] = [ x for x in self._spec_to_target[sfile] \
-                if x >= 0 ]
+            self._spec_keep[sfile] = [x for x in self._spec_to_target[sfile] if x >= 0]
 
             # The mapping between original spectral indices and the sliced ones
-
-            self._spec_sliced[sfile] = { x : y for y, x in \
-                enumerate(self._spec_keep[sfile]) }
+            self._spec_sliced[sfile] = {x: y for y, x in enumerate(self._spec_keep[sfile])}
 
             # Slice the fibermap
-
             self._fmaps[sfile] = fmap[self._spec_keep[sfile]]
 
             # For each target, store the sliced row index of all spectra,
             # so that we can do a fast lookup later.
-
             self._target_specs[sfile] = {}
             for id in keep_targetids:
-                self._target_specs[sfile][id] = [ x for x, y in \
-                    enumerate(self._fmaps[sfile]["TARGETID"]) if y == id ]
+                self._target_specs[sfile][id] = [x for x, y in
+                                                 enumerate(self._fmaps[sfile]["TARGETID"])
+                                                 if y == id]
 
             # We need some more metadata information for each file-
             # specifically, the bands that are used and their wavelength grids.
@@ -266,12 +253,12 @@ class DistTargetsDESI(DistTargets):
                         tweights[t] += len(self._target_specs[sfile][t])
 
         self._proc_targets = distribute_work(comm_size,
-            self._keep_targets, weights=tweights)
+                                             self._keep_targets, weights=tweights)
 
         self._my_targets = self._proc_targets[comm_rank]
 
         # Reverse mapping- target ID to index in our list
-        self._my_target_indx = {y : x for x, y in enumerate(self._my_targets)}
+        self._my_target_indx = {y: x for x, y in enumerate(self._my_targets)}
 
         # Now every process has its local target IDs assigned.  Pre-create our
         # local target list with empty spectral data (except for wavelengths)
@@ -295,7 +282,7 @@ class DistTargetsDESI(DistTargets):
                             if hastileid:
                                 tileids.add(frow["TILEID"])
                             speclist.append(Spectrum(self._wave[sfile][b],
-                                None, None, None, None))
+                                                     None, None, None, None))
             # Meta dictionary for this target.  Whatever keys we put in here
             # will end up as columns in the final zbest output table.
             tmeta = dict()
@@ -310,7 +297,7 @@ class DistTargetsDESI(DistTargets):
         # into place.
 
         # these are for tracking offsets within the spectra for each target.
-        tspec_flux = { x : 0 for x in self._my_targets }
+        tspec_flux = {x: 0 for x in self._my_targets}
         tspec_ivar = tspec_flux.copy()
         tspec_mask = tspec_flux.copy()
         tspec_res = tspec_flux.copy()
@@ -353,7 +340,7 @@ class DistTargetsDESI(DistTargets):
                     # check for NaN and Inf here (should never happen of course)
                     bad = np.isnan(hdata) | np.isinf(hdata) | np.isneginf(hdata)
                     hdata[bad] = 0.0
-                    hdata[badflux] = 0.0 # also set ivar=0 to bad flux
+                    hdata[badflux] = 0.0  # also set ivar=0 to bad flux
                 if comm is not None:
                     hdata = comm.bcast(hdata, root=0)
 
@@ -398,7 +385,7 @@ class DistTargetsDESI(DistTargets):
                         for trow in self._target_specs[sfile][t]:
                             dia = Resolution(hdata[trow].astype(np.float64))
                             self._my_data[toff].spectra[tspec_res[t]].R = dia
-                            #- Coadds replace Rcsr so only compute if not coadding
+                            # Coadds replace Rcsr so only compute if not coadding
                             if not coadd and cache_Rcsr:
                                 self._my_data[toff].spectra[tspec_res[t]].Rcsr = dia.tocsr()
                             tspec_res[t] += 1
@@ -413,13 +400,11 @@ class DistTargetsDESI(DistTargets):
 
         if coadd:
             for t in self._my_data:
-                t.compute_coadd(cache_Rcsr,cosmics_nsig=self.cosmics_nsig)
+                t.compute_coadd(cache_Rcsr, cosmics_nsig=self.cosmics_nsig)
 
-        self.fibermap = Table(np.hstack([ self._fmaps[x] \
-            for x in self._spectrafiles ]))
+        self.fibermap = Table(np.hstack([self._fmaps[x] for x in self._spectrafiles]))
 
         super(DistTargetsDESI, self).__init__(self._keep_targets, comm=comm)
-
 
     def _local_target_ids(self):
         return self._my_targets
@@ -443,62 +428,61 @@ def rrdesi(options=None, comm=None):
 
     global_start = elapsed(None, "", comm=comm)
 
-    parser = argparse.ArgumentParser(description="Estimate redshifts from"
-        " DESI target spectra.")
+    parser = argparse.ArgumentParser(description="Estimate redshifts from DESI target spectra.")
 
-    parser.add_argument("-t", "--templates", type=str, default=None,
-        required=False, help="template file or directory")
+    parser.add_argument("-t", "--templates", type=str, default=None, required=False,
+                        help="template file or directory")
 
-    parser.add_argument("--archetypes", type=str, default=None,
-        required=False, help="archetype file or directory for final redshift comparison")
+    parser.add_argument("--archetypes", type=str, default=None, required=False,
+                        help="archetype file or directory for final redshift comparison")
 
-    parser.add_argument("-o", "--output", type=str, default=None,
-        required=False, help="output file")
+    parser.add_argument("-o", "--output", type=str, default=None, required=False,
+                        help="output file")
 
-    parser.add_argument("-z", "--zbest", type=str, default=None,
-        required=False, help="output zbest FITS file")
+    parser.add_argument("-z", "--zbest", type=str, default=None, required=False,
+                        help="output zbest FITS file")
 
-    parser.add_argument("--targetids", type=str, default=None,
-        required=False, help="comma-separated list of target IDs")
+    parser.add_argument("--targetids", type=str, default=None, required=False,
+                        help="comma-separated list of target IDs")
 
-    parser.add_argument("--mintarget", type=int, default=None,
-        required=False, help="first target to process in each file")
+    parser.add_argument("--mintarget", type=int, default=None, required=False,
+                        help="first target to process in each file")
 
-    parser.add_argument("--priors", type=str, default=None,
-        required=False, help="optional redshift prior file")
+    parser.add_argument("--priors", type=str, default=None, required=False,
+                        help="optional redshift prior file")
 
-    parser.add_argument("--chi2-scan", type=str, default=None,
-        required=False, help="Load the chi2-scan from the input file")
+    parser.add_argument("--chi2-scan", type=str, default=None, required=False,
+                        help="Load the chi2-scan from the input file")
 
-    parser.add_argument("-n", "--ntargets", type=int,
-        required=False, help="the number of targets to process in each file")
+    parser.add_argument("-n", "--ntargets", type=int, required=False,
+                        help="the number of targets to process in each file")
 
-    parser.add_argument("--nminima", type=int, default=3,
-        required=False, help="the number of redshift minima to search")
+    parser.add_argument("--nminima", type=int, default=3, required=False,
+                        help="the number of redshift minima to search")
 
-    parser.add_argument("--allspec", default=False, action="store_true",
-        required=False, help="use individual spectra instead of coadd")
+    parser.add_argument("--allspec", default=False, action="store_true", required=False,
+                        help="use individual spectra instead of coadd")
 
-    parser.add_argument("--ncpu", type=int, default=None,
-        required=False, help="DEPRECATED: the number of multiprocessing"
-            " processes; use --mp instead")
+    parser.add_argument("--ncpu", type=int, default=None, required=False,
+                        help="DEPRECATED: the number of multiprocessing \
+                              processes; use --mp instead")
 
-    parser.add_argument("--mp", type=int, default=0,
-        required=False, help="if not using MPI, the number of multiprocessing"
-            " processes to use (defaults to half of the hardware threads)")
+    parser.add_argument("--mp", type=int, default=0, required=False,
+                        help="if not using MPI, the number of multiprocessing \
+                              processes to use (defaults to half of the hardware threads)")
 
-    parser.add_argument("--no-skymask", default=False, action="store_true",
-        required=False, help="Do not do extra masking of sky lines")
+    parser.add_argument("--no-skymask", default=False, action="store_true", required=False,
+                        help="Do not do extra masking of sky lines")
 
-    parser.add_argument("--no-mpi-abort", default=False, action="store_true",
-        required=False, help="Do not call MPI Abort upon failure of a single rank")
+    parser.add_argument("--no-mpi-abort", default=False, action="store_true", required=False,
+                        help="Do not call MPI Abort upon failure of a single rank")
 
-    parser.add_argument("--debug", default=False, action="store_true",
-        required=False, help="debug with ipython (only if communicator has a "
-        "single process)")
+    parser.add_argument("--debug", default=False, action="store_true", required=False,
+                        help="debug with ipython (only if communicator has a \
+                              single process)")
 
-    parser.add_argument("--cosmics-nsig", type=float, default=0,
-        required=False, help="n sigma cosmic ray threshold in coaddition")
+    parser.add_argument("--cosmics-nsig", type=float, default=0, required=False,
+                        help="n sigma cosmic ray threshold in coaddition")
 
     parser.add_argument("infiles", nargs='*')
 
@@ -524,31 +508,27 @@ def rrdesi(options=None, comm=None):
     if comm_rank == 0:
         if args.debug and comm_size != 1:
             logger.info("--debug can only be used if the communicator has one process")
-            sys.stdout.flush()
             if comm is not None:
                 comm.Abort()
 
         if (args.output is None) and (args.zbest is None):
             parser.print_help()
-            print("ERROR: --output or --zbest required")
             sys.stdout.flush()
+            logger.error("--output or --zbest required")
             if comm is not None:
                 comm.Abort()
             else:
                 sys.exit(1)
 
         if len(args.infiles) == 0:
-            print("ERROR: must provide input files")
-            sys.stdout.flush()
+            logger.error("must provide input files")
             if comm is not None:
                 comm.Abort()
             else:
                 sys.exit(1)
 
-        if (args.targetids is not None) and ((args.mintarget is not None) \
-            or (args.ntargets is not None)):
-            print("ERROR: cannot select targets by both ID and range")
-            sys.stdout.flush()
+        if (args.targetids is not None) and ((args.mintarget is not None) or (args.ntargets is not None)):
+            logger.error("cannot select targets by both ID and range")
             if comm is not None:
                 comm.Abort()
             else:
@@ -556,7 +536,7 @@ def rrdesi(options=None, comm=None):
 
     targetids = None
     if args.targetids is not None:
-        targetids = [ int(x) for x in args.targetids.split(",") ]
+        targetids = [int(x) for x in args.targetids.split(",")]
 
     n_target = None
     if args.ntargets is not None:
@@ -572,29 +552,24 @@ def rrdesi(options=None, comm=None):
     mpprocs = 0
     if comm is None:
         mpprocs = get_mp(args.mp)
-        logger.info(" Running with {} processes".format(mpprocs))
+        logger.info("Running with {} processes".format(mpprocs))
         if "OMP_NUM_THREADS" in os.environ:
             nthread = int(os.environ["OMP_NUM_THREADS"])
             if nthread != 1:
-                logger.warning(" {} multiprocesses running, each with "
-                    "{} threads ({} total)".format(mpprocs, nthread,
-                    mpprocs*nthread))
-                logger.warning(" Please ensure this is <= the number of "
-                    "physical cores on the system")
+                logger.warning(f"{mpprocs} multiprocesses running, each with {nthread} threads ({mpprocs * nthread} total)")
+                logger.warning("Please ensure this is <= the number of "
+                               "physical cores on the system")
         else:
-            logger.warning(" using multiprocessing, but the OMP_NUM_THREADS")
-            logger.warning(" environment variable is not set- your system may")
-            logger.warning(" be oversubscribed.")
-        sys.stdout.flush()
+            logger.warning("using multiprocessing, but the OMP_NUM_THREADS")
+            logger.warning("environment variable is not set- your system may")
+            logger.warning("be oversubscribed.")
     elif comm_rank == 0:
         logger.info(" Running with {} processes".format(comm_size))
-        sys.stdout.flush()
 
     try:
         # Load and distribute the targets
         if comm_rank == 0:
-            logger.debug(" Loading targets...")
-            sys.stdout.flush()
+            logger.debug("Loading targets...")
 
         start = elapsed(None, "", comm=comm)
 
@@ -604,7 +579,7 @@ def rrdesi(options=None, comm=None):
                                   targetids=targetids, first_target=first_target, n_target=n_target,
                                   comm=comm, cache_Rcsr=True, cosmics_nsig=args.cosmics_nsig)
 
-        #- Mask some problematic sky lines
+        # Mask some problematic sky lines
         if not args.no_skymask:
             for t in targets.local():
                 for s in t.spectra:
@@ -615,13 +590,13 @@ def rrdesi(options=None, comm=None):
         # Get the dictionary of wavelength grids
         dwave = targets.wavegrids()
 
-        stop = elapsed(start, "Read and distribution of {} targets"\
-            .format(len(targets.all_target_ids)), comm=comm)
+        stop = elapsed(start, "Read and distribution of {} targets"
+                       .format(len(targets.all_target_ids)), comm=comm)
 
         # Read the template data
 
         dtemplates = load_dist_templates(dwave, templates=args.templates,
-            comm=comm, mp_procs=mpprocs)
+                                         comm=comm, mp_procs=mpprocs)
 
         # Compute the redshifts, including both the coarse scan and the
         # refinement.  This function only returns data on the rank 0 process.
@@ -629,8 +604,8 @@ def rrdesi(options=None, comm=None):
         start = elapsed(None, "", comm=comm)
 
         scandata, zfit = zfind(targets, dtemplates, mpprocs,
-            nminima=args.nminima, archetypes=args.archetypes,
-            priors=args.priors, chi2_scan=args.chi2_scan)
+                               nminima=args.nminima, archetypes=args.archetypes,
+                               priors=args.priors, chi2_scan=args.chi2_scan)
 
         stop = elapsed(start, "Computing redshifts took", comm=comm)
 
@@ -655,11 +630,11 @@ def rrdesi(options=None, comm=None):
                     if colname.islower():
                         zbest.rename_column(colname, colname.upper())
 
-                template_version = {t._template.full_type:t._template._version for t in dtemplates}
+                template_version = {t._template.full_type: t._template._version for t in dtemplates}
                 archetype_version = None
-                if not args.archetypes is None:
+                if args.archetypes is not None:
                     archetypes = All_archetypes(archetypes_dir=args.archetypes).archetypes
-                    archetype_version = {name:arch._version for name, arch in archetypes.items() }
+                    archetype_version = {name: arch._version for name, arch in archetypes.items()}
                 write_zbest(args.zbest, zbest, targets.fibermap, template_version, archetype_version)
 
             stop = elapsed(start, "Writing zbest data took", comm=comm)
@@ -667,10 +642,9 @@ def rrdesi(options=None, comm=None):
     except Exception as err:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-        lines = [ "Proc {}: {}".format(comm_rank, x) for x in lines ]
+        lines = ["Proc {}: {}".format(comm_rank, x) for x in lines]
         logger.info("--- Process {} raised an exception ---".format(comm_rank))
         logger.info("".join(lines))
-        sys.stdout.flush()
         if comm is None or args.no_mpi_abort:
             raise err
         else:
