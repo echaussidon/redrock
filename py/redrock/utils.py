@@ -12,6 +12,9 @@ import numpy as np
 
 from . import constants
 
+import logging
+logger = logging.getLogger("redrock.utils")
+
 #- From https://github.com/desihub/desispec io.util.native_endian
 def native_endian(data):
     """Convert numpy array data to native endianness if needed.
@@ -87,7 +90,7 @@ def elapsed(timer, prefix, comm=None):
     if timer is not None:
         elapsed = cur - timer
         if ((comm is None) or (comm.rank == 0)):
-            print("{}: {:0.1f} seconds".format(prefix, elapsed))
+            logger.info("{}: {:0.1f} seconds".format(prefix, elapsed))
             sys.stdout.flush()
 
     return cur
@@ -139,7 +142,7 @@ def get_mp(requested):
     login_max = 4
     if nersc_login_node():
         if procs > login_max:
-            print("Running on a NERSC login node- reducing number of processes"
+            logger.info("Running on a NERSC login node- reducing number of processes"
                 " to {}".format(login_max))
             sys.stdout.flush()
             procs = login_max

@@ -6,6 +6,9 @@ from astropy.io import fits
 import os
 import numpy as np
 
+import logging
+logger = logging.getLogger("redrock.priors")
+
 class Priors():
     """Class to store all different redshift priors.
     Args:
@@ -18,8 +21,8 @@ class Priors():
     """
     def __init__(self, filename):
 
-        print('Using priors')
-        print(f'read {filename}')
+        logger.debug('Using priors')
+        logger.debug(f'read {filename}')
 
         h = fits.open(os.path.expandvars(filename), memmap=False)
 
@@ -49,7 +52,7 @@ class Priors():
             s0 = self._param[targetid]['SIGMA']
             return self._func(z,z0,s0)
         except KeyError:
-            print(f'targetid {targetid} not in priors')
+            logger.warning(f'targetid {targetid} not in priors')
             return 0.
 
 
@@ -101,9 +104,8 @@ class Priors():
         Returns:
             prior values on the redshift grid.
         """
-        
         prior = np.where(np.abs(z - z0) < s0/2, 0., np.NaN)
- 
+
         index_left, index_right = np.argwhere(prior>=0.0)[0], np.argwhere(prior>=0.0)[-1]
     
         if index_left == 0:
@@ -114,5 +116,4 @@ class Priors():
             prior[index_right] = np.inf
         else:
             prior[index_right + 1] = np.inf
-
         return prior

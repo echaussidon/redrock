@@ -55,6 +55,7 @@ def find_minima(x):
         (array): The indices.
 
     """
+
     x = np.asarray(x)
     ii = np.where(np.r_[True, x[1:]<=x[:-1]] & np.r_[x[:-1]<=x[1:], True])[0]
 

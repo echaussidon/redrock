@@ -16,6 +16,9 @@ from .utils import native_endian, elapsed, transmission_Lyman
 
 from .rebin import rebin_template, trapz_rebin
 
+import logging
+logger = logging.getLogger("redrock.templates")
+
 
 class Template(object):
     """A spectral Template PCA object.
@@ -85,12 +88,12 @@ class Template(object):
                         "template type {}".format(self._rrtype))
                 zmin = self._redshifts[0]
                 zmax = self._redshifts[-1]
-                print("DEBUG: Using default redshift range {:.4f}-{:.4f} for "
+                logger.debug("Using default redshift range {:.4f}-{:.4f} for "
                     "{}".format(zmin, zmax, os.path.basename(filename)))
             else:
                 zmin = self._redshifts[0]
                 zmax = self._redshifts[-1]
-                print("DEBUG: Using redshift range {:.4f}-{:.4f} for "
+                logger.debug("Using redshift range {:.4f}-{:.4f} for "
                     "{}".format(zmin, zmax, os.path.basename(filename)))
 
             self._subtype = None
@@ -190,7 +193,7 @@ def find_templates(template_dir=None):
     if template_dir is None:
         raise IOError("ERROR: can't find template_dir, $RR_TEMPLATE_DIR, or {rrcode}/templates/")
     else:
-        print('DEBUG: Read templates from {}'.format(template_dir) )
+        logger.debug('DEBUG: Read templates from {}'.format(template_dir) )
 
     return sorted(glob(os.path.join(template_dir, 'rrtemplate-*.fits')))
 
