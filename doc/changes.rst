@@ -2,10 +2,66 @@
 redrock Change Log
 ==================
 
-0.14.6 (unreleased)
+0.15.5 (unreleased)
+-------------------
+
+* Add rrdesi ``if __name__ == "__main__"`` wrapper for multiprocessing
+  robustness (PR `#209`_).
+
+.. _`#209`: https://github.com/desihub/redrock/pull/209
+
+0.15.4 (2022-02-28)
+-------------------
+
+* Add redrock.templates.eval_model convenience routine (PR `#206`_).
+
+.. _`#206`: https://github.com/desihub/redrock/pull/206
+
+0.15.3 (2022-02-11)
+-------------------
+
+* Propagate SURVEY and PROGRAM keywords from input files (PR `#203`_).
+
+.. _`#203`: https://github.com/desihub/redrock/pull/203
+
+0.15.2 (2022-01-23)
+-------------------
+
+* Propagate spec group keywords from input files (PR `#202`_).
+
+.. _`#202`: https://github.com/desihub/redrock/pull/202
+
+0.15.1 (2022-01-20)
+-------------------
+
+* add dependency keywords to redrock output (PR `#200`_).
+* set zwarn LITTLE_COVERAGE for badamp/badcol (PR `#201`_).
+
+.. _`#200`: https://github.com/desihub/redrock/pull/200
+.. _`#201`: https://github.com/desihub/redrock/pull/201
+
+0.15.0 (2021-07-14)
+-------------------
+
+Note: Major changes to output formats; requires desispec >= 0.45.0
+
+* Split FIBERMAP into FIBERMAP (coadded) and EXP_FIBERMAP (per-exposure)
+  (PR `#196`_).
+* Add additional ZWARN bit masking for known bad input data (PR `#196`_).
+* Rename zbest -> redrock output, update rrdesi option names (PR `#198`_).
+
+.. _`#196`: https://github.com/desihub/redrock/pull/196
+.. _`#198`: https://github.com/desihub/redrock/pull/198
+
+0.14.6 (2021-07-06)
 -------------------
 
 * reserve ZWARN bits 16-23 for end-user; redrock will not set these.
+* Add tophap prior option (PR `#194`_).
+* Switch to github actions for testing (PR `#195`_).
+
+.. _`#194`: https://github.com/desihub/redrock/pull/194
+.. _`#195`: https://github.com/desihub/redrock/pull/195
 
 0.14.5 (2021-02-15)
 -------------------
